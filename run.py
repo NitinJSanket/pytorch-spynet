@@ -9,6 +9,7 @@ import os
 import PIL
 import PIL.Image
 import sys
+from tqdm import tqdm
 
 ##########################################################
 
@@ -27,9 +28,10 @@ arguments_strOut = './out.flo'
 
 for strOption, strArgument in getopt.getopt(sys.argv[1:], '', [ strParameter[2:] + '=' for strParameter in sys.argv[1::2] ])[0]:
 	if strOption == '--model' and strArgument != '': arguments_strModel = strArgument # which model to use, see below
-	if strOption == '--first' and strArgument != '': arguments_strFirst = strArgument # path to the first frame
-	if strOption == '--second' and strArgument != '': arguments_strSecond = strArgument # path to the second frame
-	if strOption == '--out' and strArgument != '': arguments_strOut = strArgument # path to where the output should be stored
+	if strOption == '--imgPrefix' and strArgument != '': arguments_imgPrefix = strArgument # path to the first frame
+        if strOption == '--imgFormat' and strArgument != '': arguments_imgFormat = strArgument
+        if strOption == '--outPrefix' and strArgument != '': arguments_outPrefix = strArgument # path to where the output should be stored
+        if strOption == '--numImgs' and strArgument != '': arguments_numImgs = strArgument
 # end
 
 ##########################################################
@@ -160,16 +162,18 @@ def estimate(tensorFirst, tensorSecond):
 ##########################################################
 
 if __name__ == '__main__':
-	tensorFirst = torch.FloatTensor(numpy.array(PIL.Image.open(arguments_strFirst))[:, :, ::-1].transpose(2, 0, 1).astype(numpy.float32) * (1.0 / 255.0))
-	tensorSecond = torch.FloatTensor(numpy.array(PIL.Image.open(arguments_strSecond))[:, :, ::-1].transpose(2, 0, 1).astype(numpy.float32) * (1.0 / 255.0))
-
-	tensorOutput = estimate(tensorFirst, tensorSecond)
-
-	objectOutput = open(arguments_strOut, 'wb')
-
-	numpy.array([ 80, 73, 69, 72 ], numpy.uint8).tofile(objectOutput)
-	numpy.array([ tensorOutput.size(2), tensorOutput.size(1) ], numpy.int32).tofile(objectOutput)
-	numpy.array(tensorOutput.numpy().transpose(1, 2, 0), numpy.float32).tofile(objectOutput)
-
-	objectOutput.close()
+        
+        for count in range(int(arguments_numImgs)):
+                tensorFirst = torch.FloatTensor(numpy.array(PIL.Image.open(arguments_imgPrefix+'%d'%(count+1)+arguments_imgFormat))[:, :, ::-1].transpose(2, 0, 1).astype(numpy.float32) * (1.0 / 255.0))
+	        tensorSecond = torch.FloatTensor(numpy.array(PIL.Image.open(arguments_imgPrefix+'%d'%(count+2)+arguments_imgFormat))[:, :, ::-1].transpose(2, 0, 1).astype(numpy.float32) * (1.0 / 255.0))
+                
+	        tensorOutput = estimate(tensorFirst, tensorSecond)
+                
+	        objectOutput = open(arguments_outPrefix+'%dand%d.flo'%(count, count+1), 'wb')
+                
+	        numpy.array([ 80, 73, 69, 72 ], numpy.uint8).tofile(objectOutput)
+	        numpy.array([ tensorOutput.size(2), tensorOutput.size(1) ], numpy.int32).tofile(objectOutput)
+	        numpy.array(tensorOutput.numpy().transpose(1, 2, 0), numpy.float32).tofile(objectOutput)
+                
+	        objectOutput.close()
 # end
